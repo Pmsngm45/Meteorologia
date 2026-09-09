@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Climate Impact Simulator</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <canvas id="weatherCanvas"></canvas>
+
+    <div class="app">
+
+        <header class="topbar">
+
+            <div>
+                <div class="logo">
+                    CLIMATE<span>SIM</span>
+                </div>
+
+                <p>
+                    Simulador meteorológico e análise de impactos
+                </p>
+            </div>
+
+            <button id="locationBtn">
+                📍 Detectar localização
+            </button>
+
+        </header>
+
+
+        <!-- LOCAL -->
+
+        <section class="location">
+
+            <div>
+                <span class="label">LOCALIZAÇÃO</span>
+
+                <h2 id="city">
+                    Detectando...
+                </h2>
+
+                <p id="coordinates">
+                    Latitude: -- | Longitude: --
+                </p>
+            </div>
+
+            <div class="status">
+                <span id="connectionStatus">
+                    ● Conectando
+                </span>
+            </div>
+
+        </section>
+
+
+        <!-- CLIMA PRINCIPAL -->
+
+        <section class="hero-weather">
+
+            <div class="main-weather">
+
+                <div class="weather-icon"
+                     id="weatherIcon">
+                    🌤️
+                </div>
+
+                <div>
+
+                    <div class="temperature"
+                         id="temperature">
+                        --°
+                    </div>
+
+                    <div id="description">
+                        Aguardando dados...
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="weather-stats">
+
+                <div class="stat">
+                    <span>💧 Umidade</span>
+                    <strong id="humidity">--</strong>
+                </div>
+
+                <div class="stat">
+                    <span>💨 Vento</span>
+                    <strong id="wind">--</strong>
+                </div>
+
+                <div class="stat">
+                    <span>🌧️ Chuva</span>
+                    <strong id="rain">--</strong>
+                </div>
+
+                <div class="stat">
+                    <span>🌧️ Probabilidade</span>
+                    <strong id="rainProbability">--</strong>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- INDICES -->
+
+        <section>
+
+            <div class="section-title">
+                <h2>Índices da situação</h2>
+                <span id="updateTime">
+                    --
+                </span>
+            </div>
+
+
+            <div class="index-grid">
+
+                <div class="index-card">
+
+                    <div class="index-header">
+                        <span>🌧️ Intensidade</span>
+                        <strong id="rainIndex">
+                            0
+                        </strong>
+                    </div>
+
+                    <div class="progress">
+                        <div id="rainBar"></div>
+                    </div>
+
+                    <p id="rainText">
+                        Sem chuva significativa
+                    </p>
+
+                </div>
+
+
+                <div class="index-card">
+
+                    <div class="index-header">
+                        <span>🏠 Casas</span>
+                        <strong id="houseIndex">
+                            0
+                        </strong>
+                    </div>
+
+                    <div class="progress">
+                        <div id="houseBar"></div>
+                    </div>
+
+                    <p id="houseText">
+                        Baixo impacto
+                    </p>
+
+                </div>
+
+
+                <div class="index-card">
+
+                    <div class="index-header">
+                        <span>🌳 Ambiente</span>
+                        <strong id="environmentIndex">
+                            0
+                        </strong>
+                    </div>
+
+                    <div class="progress">
+                        <div id="environmentBar"></div>
+                    </div>
+
+                    <p id="environmentText">
+                        Impacto baixo
+                    </p>
+
+                </div>
+
+
+                <div class="index-card">
+
+                    <div class="index-header">
+                        <span>🚗 Transporte</span>
+                        <strong id="transportIndex">
+                            0
+                        </strong>
+                    </div>
+
+                    <div class="progress">
+                        <div id="transportBar"></div>
+                    </div>
+
+                    <p id="transportText">
+                        Condições normais
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- IMPACTOS ECONÔMICOS -->
+
+        <section class="panel">
+
+            <div class="section-title">
+
+                <div>
+                    <h2>💰 Impactos econômicos estimados</h2>
+
+                    <p>
+                        Estimativas heurísticas baseadas na intensidade da chuva.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="economic-grid">
+
+                <div class="economic-card">
+
+                    <div class="economic-icon">
+                        🛒
+                    </div>
+
+                    <div>
+                        <span>Demanda por produtos</span>
+
+                        <strong id="demand">
+                            --
+                        </strong>
+
+                        <p id="demandDescription">
+                            --
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="economic-card">
+
+                    <div class="economic-icon">
+                        💵
+                    </div>
+
+                    <div>
+                        <span>Pressão nos preços</span>
+
+                        <strong id="prices">
+                            --
+                        </strong>
+
+                        <p id="priceDescription">
+                            --
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="economic-card">
+
+                    <div class="economic-icon">
+                        🚚
+                    </div>
+
+                    <div>
+                        <span>Logística</span>
+
+                        <strong id="logistics">
+                            --
+                        </strong>
+
+                        <p id="logisticsDescription">
+                            --
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="economic-card">
+
+                    <div class="economic-icon">
+                        🏪
+                    </div>
+
+                    <div>
+                        <span>Comércio local</span>
+
+                        <strong id="commerce">
+                            --
+                        </strong>
+
+                        <p id="commerceDescription">
+                            --
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- CATEGORIAS DE PREÇOS -->
+
+        <section class="panel">
+
+            <h2>📊 Possíveis efeitos por categoria</h2>
+
+            <div class="price-table">
+
+                <div class="price-row header">
+                    <span>Categoria</span>
+                    <span>Demanda</span>
+                    <span>Preço</span>
+                    <span>Impacto</span>
+                </div>
+
+
+                <div class="price-row">
+                    <span>🛒 Alimentos</span>
+                    <strong id="foodDemand">--</strong>
+                    <strong id="foodPrice">--</strong>
+                    <span id="foodImpact">--</span>
+                </div>
+
+
+                <div class="price-row">
+                    <span>🚗 Transporte</span>
+                    <strong id="transportDemand">--</strong>
+                    <strong id="transportPrice">--</strong>
+                    <span id="transportImpact">--</span>
+                </div>
+
+
+                <div class="price-row">
+                    <span>🏠 Construção</span>
+                    <strong id="constructionDemand">--</strong>
+                    <strong id="constructionPrice">--</strong>
+                    <span id="constructionImpact">--</span>
+                </div>
+
+
+                <div class="price-row">
+                    <span>⚡ Energia</span>
+                    <strong id="energyDemand">--</strong>
+                    <strong id="energyPrice">--</strong>
+                    <span id="energyImpact">--</span>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- AMBIENTE E CASAS -->
+
+        <section class="impact-grid">
+
+            <div class="panel">
+
+                <h2>🏠 Impacto nas casas</h2>
+
+                <div class="impact-list">
+
+                    <div>
+                        <span>Infiltração</span>
+                        <strong id="infiltration">--</strong>
+                    </div>
+
+                    <div>
+                        <span>Alagamento</span>
+                        <strong id="flooding">--</strong>
+                    </div>
+
+                    <div>
+                        <span>Telhados/calhas</span>
+                        <strong id="roof">--</strong>
+                    </div>
+
+                    <div>
+                        <span>Umidade</span>
+                        <strong id="moisture">--</strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="panel">
+
+                <h2>🌳 Impacto ambiental</h2>
+
+                <div class="impact-list">
+
+                    <div>
+                        <span>Recarga hídrica</span>
+                        <strong id="waterRecharge">--</strong>
+                    </div>
+
+                    <div>
+                        <span>Erosão</span>
+                        <strong id="erosion">--</strong>
+                    </div>
+
+                    <div>
+                        <span>Vegetação</span>
+                        <strong id="vegetation">--</strong>
+                    </div>
+
+                    <div>
+                        <span>Risco ambiental</span>
+                        <strong id="environmentRisk">--</strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- SIMULADOR -->
+
+        <section class="panel simulator">
+
+            <div class="section-title">
+
+                <div>
+                    <h2>🌧️ Simulação</h2>
+
+                    <p>
+                        Controle a intensidade manualmente.
+                    </p>
+                </div>
+
+                <button id="autoMode">
+                    🤖 Modo automático
+                </button>
+
+            </div>
+
+
+            <div class="slider-container">
+
+                <div class="slider-labels">
+                    <span>☀️ 0%</span>
+                    <strong id="simulationValue">
+                        0%
+                    </strong>
+                    <span>⛈️ 100%</span>
+                </div>
+
+                <input
+                    type="range"
+                    id="rainSlider"
+                    min="0"
+                    max="100"
+                    value="0"
+                >
+
+            </div>
+
+
+            <div class="simulation-result">
+
+                <span>Estado da simulação</span>
+
+                <strong id="simulationStatus">
+                    Sem chuva
+                </strong>
+
+            </div>
+
+        </section>
+
+
+        <!-- PREVISÃO -->
+
+        <section class="panel">
+
+            <h2>🕐 Próximas horas</h2>
+
+            <div id="forecast"
+                 class="forecast">
+            </div>
+
+        </section>
+
+
+        <footer>
+
+            <p>
+                ClimateSim — dados meteorológicos e
+                simulações educacionais.
+            </p>
+
+            <p>
+                Os impactos econômicos são estimativas
+                e não representam previsão oficial de preços.
+            </p>
+
+        </footer>
+
+    </div>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,803 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+:root {
+
+    --bg: #050b14;
+
+    --panel: rgba(14, 25, 41, 0.82);
+
+    --panel2: rgba(22, 38, 59, 0.75);
+
+    --border: rgba(255,255,255,0.08);
+
+    --text: #f2f7ff;
+
+    --muted: #8fa4ba;
+
+    --blue: #48a9ff;
+
+    --green: #46d39a;
+
+    --yellow: #ffd166;
+
+    --red: #ff667a;
+
+}
+
+
+body {
+
+    background:
+        radial-gradient(
+            circle at 20% 0%,
+            #12345a,
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at 90% 100%,
+            #092d2b,
+            transparent 30%
+        ),
+        var(--bg);
+
+    color: var(--text);
+
+    font-family:
+        Inter,
+        Arial,
+        sans-serif;
+
+    min-height: 100vh;
+
+    overflow-x: hidden;
+}
+
+
+#weatherCanvas {
+
+    position: fixed;
+
+    inset: 0;
+
+    width: 100%;
+
+    height: 100%;
+
+    pointer-events: none;
+
+    z-index: 0;
+}
+
+
+.app {
+
+    position: relative;
+
+    z-index: 2;
+
+    width: min(1200px, 94%);
+
+    margin: auto;
+
+    padding: 35px 0 60px;
+}
+
+
+/* HEADER */
+
+.topbar {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 25px;
+
+    gap: 20px;
+}
+
+
+.logo {
+
+    font-size: 30px;
+
+    font-weight: 900;
+
+    letter-spacing: 2px;
+}
+
+
+.logo span {
+
+    color: var(--blue);
+}
+
+
+.topbar p {
+
+    color: var(--muted);
+
+    margin-top: 6px;
+}
+
+
+button {
+
+    border: 1px solid rgba(255,255,255,.1);
+
+    background:
+        linear-gradient(
+            135deg,
+            #319df2,
+            #1673bd
+        );
+
+    color: white;
+
+    padding: 13px 20px;
+
+    border-radius: 11px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: .2s;
+}
+
+
+button:hover {
+
+    transform: translateY(-2px);
+
+    filter: brightness(1.15);
+}
+
+
+/* CARDS */
+
+.location,
+.hero-weather,
+.panel,
+.index-card {
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(20,37,58,.9),
+            rgba(9,19,32,.84)
+        );
+
+    border: 1px solid var(--border);
+
+    box-shadow:
+        0 20px 60px rgba(0,0,0,.25);
+
+    backdrop-filter: blur(15px);
+
+}
+
+
+.location {
+
+    padding: 22px;
+
+    border-radius: 18px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 20px;
+}
+
+
+.label {
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+    letter-spacing: 2px;
+}
+
+
+.location h2 {
+
+    margin-top: 5px;
+
+    font-size: 25px;
+}
+
+
+.location p {
+
+    color: var(--muted);
+
+    margin-top: 5px;
+}
+
+
+.status {
+
+    color: var(--green);
+
+    font-size: 13px;
+}
+
+
+/* HERO */
+
+.hero-weather {
+
+    padding: 30px;
+
+    border-radius: 22px;
+
+    margin-bottom: 30px;
+}
+
+
+.main-weather {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 25px;
+
+    margin-bottom: 30px;
+}
+
+
+.weather-icon {
+
+    font-size: 75px;
+
+    filter:
+        drop-shadow(
+            0 10px 20px rgba(0,0,0,.3)
+        );
+}
+
+
+.temperature {
+
+    font-size: 75px;
+
+    font-weight: 800;
+
+    line-height: 1;
+}
+
+
+#description {
+
+    color: var(--muted);
+
+    margin-top: 10px;
+
+    font-size: 18px;
+}
+
+
+.weather-stats {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    gap: 12px;
+}
+
+
+.stat {
+
+    padding: 18px;
+
+    border-radius: 14px;
+
+    background:
+        rgba(255,255,255,.045);
+}
+
+
+.stat span {
+
+    display: block;
+
+    color: var(--muted);
+
+    font-size: 13px;
+
+    margin-bottom: 7px;
+}
+
+
+.stat strong {
+
+    font-size: 21px;
+}
+
+
+/* TITLES */
+
+.section-title {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 15px;
+}
+
+
+.section-title h2 {
+
+    font-size: 20px;
+}
+
+
+.section-title p {
+
+    color: var(--muted);
+
+    font-size: 13px;
+
+    margin-top: 5px;
+}
+
+
+.section-title > span {
+
+    color: var(--muted);
+
+    font-size: 12px;
+}
+
+
+/* INDICES */
+
+.index-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    gap: 15px;
+
+    margin-bottom: 30px;
+}
+
+
+.index-card {
+
+    padding: 18px;
+
+    border-radius: 16px;
+}
+
+
+.index-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    margin-bottom: 15px;
+}
+
+
+.index-header strong {
+
+    font-size: 22px;
+}
+
+
+.progress {
+
+    height: 7px;
+
+    background:
+        rgba(255,255,255,.08);
+
+    border-radius: 20px;
+
+    overflow: hidden;
+
+    margin-bottom: 10px;
+}
+
+
+.progress div {
+
+    height: 100%;
+
+    width: 0%;
+
+    background:
+        linear-gradient(
+            90deg,
+            #43d3ff,
+            #5a8cff
+        );
+
+    border-radius: inherit;
+
+    transition: .6s;
+}
+
+
+.index-card p {
+
+    color: var(--muted);
+
+    font-size: 12px;
+}
+
+
+/* PAINEL */
+
+.panel {
+
+    border-radius: 18px;
+
+    padding: 25px;
+
+    margin-bottom: 20px;
+}
+
+
+/* ECONOMIA */
+
+.economic-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    gap: 14px;
+}
+
+
+.economic-card {
+
+    display: flex;
+
+    gap: 15px;
+
+    padding: 18px;
+
+    border-radius: 14px;
+
+    background:
+        rgba(255,255,255,.04);
+}
+
+
+.economic-icon {
+
+    font-size: 30px;
+}
+
+
+.economic-card span {
+
+    color: var(--muted);
+
+    font-size: 12px;
+
+    display: block;
+
+    margin-bottom: 5px;
+}
+
+
+.economic-card strong {
+
+    font-size: 18px;
+
+    display: block;
+}
+
+
+.economic-card p {
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+    margin-top: 5px;
+
+    line-height: 1.5;
+}
+
+
+/* TABELA */
+
+.price-table {
+
+    overflow-x: auto;
+}
+
+
+.price-row {
+
+    display: grid;
+
+    grid-template-columns:
+        2fr 1fr 1fr 1.5fr;
+
+    padding: 15px;
+
+    border-bottom:
+        1px solid rgba(255,255,255,.06);
+
+    gap: 15px;
+
+    align-items: center;
+}
+
+
+.price-row.header {
+
+    color: var(--muted);
+
+    font-size: 12px;
+
+    text-transform: uppercase;
+}
+
+
+.price-row strong {
+
+    font-size: 14px;
+}
+
+
+/* IMPACTOS */
+
+.impact-grid {
+
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 20px;
+}
+
+
+.impact-list {
+
+    display: grid;
+
+    gap: 10px;
+}
+
+
+.impact-list div {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    padding: 14px;
+
+    background:
+        rgba(255,255,255,.04);
+
+    border-radius: 10px;
+}
+
+
+.impact-list span {
+
+    color: var(--muted);
+}
+
+
+/* SIMULADOR */
+
+.slider-container {
+
+    padding: 15px 0 25px;
+}
+
+
+.slider-labels {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    margin-bottom: 12px;
+}
+
+
+input[type="range"] {
+
+    width: 100%;
+
+    accent-color: var(--blue);
+
+    cursor: pointer;
+}
+
+
+.simulation-result {
+
+    padding: 18px;
+
+    border-radius: 13px;
+
+    background:
+        rgba(72,169,255,.08);
+
+    display: flex;
+
+    justify-content: space-between;
+}
+
+
+.simulation-result span {
+
+    color: var(--muted);
+}
+
+
+/* PREVISÃO */
+
+.forecast {
+
+    display: flex;
+
+    gap: 10px;
+
+    overflow-x: auto;
+
+    padding-bottom: 5px;
+}
+
+
+.forecast-item {
+
+    min-width: 125px;
+
+    padding: 18px;
+
+    background:
+        rgba(255,255,255,.04);
+
+    border-radius: 13px;
+
+    text-align: center;
+}
+
+
+.forecast-item .hour {
+
+    color: var(--muted);
+
+    font-size: 12px;
+}
+
+
+.forecast-item .icon {
+
+    font-size: 30px;
+
+    margin: 10px 0;
+}
+
+
+.forecast-item .temp {
+
+    font-size: 20px;
+
+    font-weight: bold;
+}
+
+
+.forecast-item .rain-prob {
+
+    color: #63c6ff;
+
+    font-size: 12px;
+
+    margin-top: 7px;
+}
+
+
+/* FOOTER */
+
+footer {
+
+    text-align: center;
+
+    color: #667b91;
+
+    font-size: 11px;
+
+    line-height: 1.7;
+
+    padding-top: 15px;
+}
+
+
+/* RESPONSIVO */
+
+@media(max-width: 850px) {
+
+    .weather-stats,
+    .index-grid,
+    .economic-grid {
+
+        grid-template-columns:
+            1fr 1fr;
+    }
+
+    .topbar {
+
+        flex-direction: column;
+
+        align-items: flex-start;
+    }
+
+}
+
+
+@media(max-width: 550px) {
+
+    .location {
+
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 15px;
+    }
+
+
+    .main-weather {
+
+        flex-direction: column;
+
+        align-items: flex-start;
+    }
+
+
+    .temperature {
+
+        font-size: 60px;
+    }
+
+
+    .weather-stats,
+    .index-grid,
+    .economic-grid,
+    .impact-grid {
+
+        grid-template-columns: 1fr;
+    }
+
+
+    .price-row {
+
+        min-width: 650px;
+    }
+
+}
