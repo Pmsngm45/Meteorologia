@@ -801,3 +801,53 @@ footer {
     }
 
 }
+.simulation-3d {
+    width: 100%;
+    margin-top: 30px;
+    padding: 20px;
+    border-radius: 18px;
+    background: #101827;
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.3);
+}
+
+.simulation-3d h2 {
+    margin-bottom: 15px;
+    color: #ffffff;
+}
+
+#weather3D {
+    width: 100%;
+    height: 500px;
+    overflow: hidden;
+    position: relative;
+    border-radius: 15px;
+    background: radial-gradient(circle, #203b61, #070b14);
+}
+
+#weather3D canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.controls-3d {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.controls-3d button {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    color: white;
+    background: #2764c7;
+    transition: 0.2s;
+}
+
+.controls-3d button:hover {
+    background: #4386ee;
+    transform: translateY(-2px);
+}
