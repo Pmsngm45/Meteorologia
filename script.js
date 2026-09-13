@@ -1,965 +1,522 @@
 /* =====================================================
-CLIMATESIM — SIMULADOR METEOROLÓGICO
+   CLIMATESIM — SIMULADOR METEOROLÓGICO
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
-
-```
-const locationBtn = document.getElementById("locationBtn");
-const rainSlider = document.getElementById("rainSlider");
-const autoMode = document.getElementById("autoMode");
-
-let currentWeather = null;
-let automaticMode = false;
-let automaticInterval = null;
-
-if (locationBtn) {
-    locationBtn.addEventListener("click", getLocation);
-}
-
-if (rainSlider) {
-    rainSlider.addEventListener("input", () => {
-        automaticMode = false;
-        stopAutomaticMode();
-
-        if (autoMode) {
-            autoMode.textContent = "🤖 Modo automático";
-        }
-
-        updateSimulation(Number(rainSlider.value));
-    });
-}
-
-if (autoMode) {
-    autoMode.addEventListener("click", toggleAutomaticMode);
-}
-
-updateSimulation(0);
-
-// Tenta carregar a localização automaticamente.
-// O navegador pedirá permissão quando necessário.
-setTimeout(getLocation, 500);
-
-
-/* =================================================
-   LOCALIZAÇÃO
-================================================= */
-
-function getLocation() {
-
-    const status = document.getElementById("connectionStatus");
-
-    if (!status) return;
-
-    if (!navigator.geolocation) {
-
-        status.textContent = "● Geolocalização não suportada";
-
-        return;
-    }
-
-    status.textContent = "● Obtendo localização...";
-
-    navigator.geolocation.getCurrentPosition(
-
-        async (position) => {
-
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-
-            const coordinates =
-                document.getElementById("coordinates");
-
-            if (coordinates) {
-
-                coordinates.textContent =
-                    `Latitude: ${latitude.toFixed(5)} | ` +
-                    `Longitude: ${longitude.toFixed(5)}`;
-
-            }
-
-            try {
-
-                await getCityName(latitude, longitude);
-
-                await getWeather(latitude, longitude);
-
-                status.textContent = "● Dados atualizados";
-
-            } catch (error) {
-
-                console.error("Erro ao carregar dados:", error);
-
-                status.textContent =
-                    "● Erro ao carregar dados meteorológicos";
-
-            }
-
-        },
-
-        (error) => {
-
-            console.error("Erro de localização:", error);
-
-            switch (error.code) {
-
-                case 1:
-                    status.textContent =
-                        "● Permissão de localização negada";
-                    break;
-
-                case 2:
-                    status.textContent =
-                        "● Localização indisponível";
-                    break;
-
-                case 3:
-                    status.textContent =
-                        "● Tempo limite excedido";
-                    break;
-
-                default:
-                    status.textContent =
-                        "● Erro desconhecido";
-
-            }
-
-        },
-
-        {
-            enableHighAccuracy: false,
-            timeout: 15000,
-            maximumAge: 300000
-        }
-
-    );
-
-}
-
-
-/* =================================================
-   BUSCAR CIDADE
-================================================= */
-
-async function getCityName(latitude, longitude) {
-
-    const cityElement = document.getElementById("city");
-
-    if (!cityElement) return;
-
-    try {
-
-        const url =
-            `https://nominatim.openstreetmap.org/reverse` +
-            `?format=json` +
-            `&lat=${latitude}` +
-            `&lon=${longitude}` +
-            `&zoom=10` +
-            `&addressdetails=1`;
-
-        const response = await fetch(url, {
-            headers: {
-                "Accept-Language": "pt-BR"
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error("Erro no reverse geocoding");
-        }
-
-        const data = await response.json();
-
-        const address = data.address || {};
-
-        const city =
-            address.city ||
-            address.town ||
-            address.village ||
-            address.municipality ||
-            address.county ||
-            "Local desconhecido";
-
-        const state = address.state || "";
-
-        const country = address.country || "";
-
-        cityElement.textContent = city;
-
-        cityElement.dataset.state = state;
-        cityElement.dataset.country = country;
-
-        console.log(`Local: ${city}, ${state}, ${country}`);
-
-    } catch (error) {
-
-        console.error("Erro ao descobrir cidade:", error);
-
-        cityElement.textContent = "Localização encontrada";
-
-    }
-
-}
-
-
-/* =================================================
-   BUSCAR CLIMA — OPEN-METEO
-================================================= */
-
-async function getWeather(latitude, longitude) {
-
-    const url =
-        `https://api.open-meteo.com/v1/forecast` +
-        `?latitude=${latitude}` +
-        `&longitude=${longitude}` +
-        `&current=temperature_2m,relative_humidity_2m,` +
-        `apparent_temperature,precipitation,rain,weather_code,` +
-        `wind_speed_10m` +
-        `&hourly=temperature_2m,precipitation_probability,` +
-        `precipitation,rain,weather_code,wind_speed_10m` +
-        `&forecast_days=2` +
-        `&timezone=auto`;
-
-    const response = await fetch(url);
-
-    if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    currentWeather = data;
-
-    console.log("Dados meteorológicos:", data);
-
-    const current = data.current;
-
-    const temperature = Number(current.temperature_2m) || 0;
-    const humidity = Number(current.relative_humidity_2m) || 0;
-    const wind = Number(current.wind_speed_10m) || 0;
-    const rain = Number(current.precipitation) || 0;
-    const weatherCode = Number(current.weather_code) || 0;
-
-    setText("temperature", `${Math.round(temperature)}°C`);
-
-    setText("humidity", `${humidity}%`);
-
-    setText("wind", `${wind.toFixed(1)} km/h`);
-
-    setText("rain", `${rain.toFixed(1)} mm`);
-
-    setText(
-        "rainProbability",
-        `${getCurrentRainProbability(data)}%`
-    );
-
-    setText(
-        "description",
-        getWeatherDescription(weatherCode)
-    );
-
-    setText(
-        "weatherIcon",
-        getWeatherIcon(weatherCode)
-    );
-
-    setText(
-        "updateTime",
-        `Atualizado às ${formatTime(current.time)}`
-    );
-
-    // Atualiza a simulação com a chuva atual.
-    const currentRain = calculateRainIntensity(
-        rain,
-        getCurrentRainProbability(data)
-    );
-
-    if (!automaticMode) {
-
-        const slider = document.getElementById("rainSlider");
-
-        if (slider) {
-            slider.value = currentRain;
-        }
-
-        updateSimulation(currentRain);
-
-    }
-
-    updateForecast(data);
-
-}
-
-
-/* =================================================
-   PROBABILIDADE DE CHUVA
-================================================= */
-
-function getCurrentRainProbability(data) {
-
-    if (
-        !data.hourly ||
-        !data.hourly.time ||
-        !data.hourly.precipitation_probability
-    ) {
-        return 0;
-    }
-
-    const currentTime = data.current.time;
-
-    let index = data.hourly.time.indexOf(currentTime);
-
-    if (index === -1) {
-
-        index = data.hourly.time.findIndex(time =>
-            time >= currentTime
-        );
-
-    }
-
-    if (index === -1) {
-        index = 0;
-    }
-
-    return Number(
-        data.hourly.precipitation_probability[index]
-    ) || 0;
-
-}
-
-
-function calculateRainIntensity(rain, probability) {
-
-    const rainScore = Math.min(rain / 15, 1) * 70;
-
-    const probabilityScore = probability * 0.3;
-
-    return Math.round(
-        Math.min(100, rainScore + probabilityScore)
-    );
-
-}
-
-
-/* =================================================
-   DESCRIÇÃO DO CLIMA
-================================================= */
-
-function getWeatherDescription(code) {
-
-    const descriptions = {
-
-        0: "Céu limpo",
-
-        1: "Predominantemente limpo",
-        2: "Parcialmente nublado",
-        3: "Nublado",
-
-        45: "Névoa",
-        48: "Névoa com geada",
-
-        51: "Garoa leve",
-        53: "Garoa moderada",
-        55: "Garoa intensa",
-
-        61: "Chuva leve",
-        63: "Chuva moderada",
-        65: "Chuva forte",
-
-        71: "Neve leve",
-        73: "Neve moderada",
-        75: "Neve forte",
-
-        80: "Pancadas de chuva leves",
-        81: "Pancadas de chuva moderadas",
-        82: "Pancadas de chuva fortes",
-
-        95: "Trovoada",
-        96: "Trovoada com granizo",
-        99: "Trovoada forte com granizo"
-
-    };
-
-    return descriptions[code] || "Condição meteorológica desconhecida";
-
-}
-
-
-function getWeatherIcon(code) {
-
-    if (code === 0) return "☀️";
-
-    if (code <= 3) return "🌤️";
-
-    if (code === 45 || code === 48) return "🌫️";
-
-    if (code >= 51 && code <= 67) return "🌧️";
-
-    if (code >= 71 && code <= 77) return "❄️";
-
-    if (code >= 80 && code <= 82) return "🌦️";
-
-    if (code >= 95) return "⛈️";
-
-    return "🌤️";
-
-}
-
-
-/* =================================================
-   SIMULAÇÃO PRINCIPAL
-================================================= */
-
-function updateSimulation(intensity) {
-
-    intensity = Math.max(0, Math.min(100, intensity));
-
-    setText("simulationValue", `${intensity}%`);
-
-    setText(
-        "simulationStatus",
-        getSimulationStatus(intensity)
-    );
-
-    updateRainIndex(intensity);
-
-    updateHouseIndex(intensity);
-
-    updateEnvironmentIndex(intensity);
-
-    updateTransportIndex(intensity);
-
-    updateEconomicImpact(intensity);
-
-    updateCategoryPrices(intensity);
-
-    updateHouseImpacts(intensity);
-
-    updateEnvironmentalImpacts(intensity);
-
-    updateRainAnimation(intensity);
-
-}
-
-
-function getSimulationStatus(intensity) {
-
-    if (intensity === 0) return "Sem chuva";
-
-    if (intensity <= 20) return "Chuva muito fraca";
-
-    if (intensity <= 40) return "Chuva leve";
-
-    if (intensity <= 60) return "Chuva moderada";
-
-    if (intensity <= 80) return "Chuva forte";
-
-    return "Chuva muito intensa";
-
-}
-
-
-/* =================================================
-   ÍNDICES
-================================================= */
-
-function updateRainIndex(value) {
-
-    setText("rainIndex", value);
-
-    setBar("rainBar", value);
-
-    setText(
-        "rainText",
-        getRainDescription(value)
-    );
-
-}
-
-
-function updateHouseIndex(value) {
-
-    const index = Math.round(value * 0.85);
-
-    setText("houseIndex", index);
-
-    setBar("houseBar", index);
-
-    setText(
-        "houseText",
-        getImpactDescription(index)
-    );
-
-}
-
-
-function updateEnvironmentIndex(value) {
-
-    const index = Math.round(value * 0.75);
-
-    setText("environmentIndex", index);
-
-    setBar("environmentBar", index);
-
-    setText(
-        "environmentText",
-        getImpactDescription(index)
-    );
-
-}
-
-
-function updateTransportIndex(value) {
-
-    const index = Math.round(value * 0.9);
-
-    setText("transportIndex", index);
-
-    setBar("transportBar", index);
-
-    setText(
-        "transportText",
-        getImpactDescription(index)
-    );
-
-}
-
-
-function getRainDescription(value) {
-
-    if (value === 0) return "Sem chuva significativa";
-
-    if (value <= 20) return "Chuva fraca";
-
-    if (value <= 40) return "Chuva leve";
-
-    if (value <= 60) return "Chuva moderada";
-
-    if (value <= 80) return "Chuva forte";
-
-    return "Chuva muito intensa";
-
-}
-
-
-function getImpactDescription(value) {
-
-    if (value <= 20) return "Baixo impacto";
-
-    if (value <= 40) return "Impacto moderado";
-
-    if (value <= 60) return "Atenção necessária";
-
-    if (value <= 80) return "Impacto elevado";
-
-    return "Alto impacto";
-
-}
-
-
-/* =================================================
-   IMPACTOS ECONÔMICOS
-================================================= */
-
-function updateEconomicImpact(value) {
-
-    const demand = Math.round(100 + value * 0.8);
-
-    const price = Math.round(value * 0.45);
-
-    const logistics = Math.round(value * 0.9);
-
-    const commerce = Math.round(value * 0.65);
-
-    setText("demand", `${demand}%`);
-
-    setText("prices", `+${price}%`);
-
-    setText("logistics", `${logistics}%`);
-
-    setText("commerce", `${commerce}%`);
-
-    setText(
-        "demandDescription",
-        value > 60
-            ? "Maior procura por produtos essenciais."
-            : "Demanda dentro do padrão."
-    );
-
-    setText(
-        "priceDescription",
-        value > 60
-            ? "Possível pressão em produtos afetados."
-            : "Baixa pressão estimada."
-    );
-
-    setText(
-        "logisticsDescription",
-        value > 60
-            ? "Possíveis atrasos no transporte."
-            : "Operação relativamente normal."
-    );
-
-    setText(
-        "commerceDescription",
-        value > 60
-            ? "Movimento comercial pode ser afetado."
-            : "Comércio funcionando normalmente."
-    );
-
-}
-
-
-/* =================================================
-   PREÇOS POR CATEGORIA
-================================================= */
-
-function updateCategoryPrices(value) {
-
-    const foodDemand = Math.round(100 + value * 0.8);
-
-    const transportDemand = Math.round(100 + value * 0.45);
-
-    const constructionDemand = Math.round(100 - value * 0.3);
-
-    const energyDemand = Math.round(100 + value * 0.5);
-
-    const foodPrice = Math.round(value * 0.45);
-
-    const transportPrice = Math.round(value * 0.35);
-
-    const constructionPrice = Math.round(value * 0.25);
-
-    const energyPrice = Math.round(value * 0.2);
-
-    setText("foodDemand", `${foodDemand}%`);
-    setText("foodPrice", `+${foodPrice}%`);
-    setText("foodImpact", getImpactDescription(value));
-
-    setText("transportDemand", `${transportDemand}%`);
-    setText("transportPrice", `+${transportPrice}%`);
-    setText("transportImpact", getImpactDescription(value));
-
-    setText("constructionDemand", `${constructionDemand}%`);
-    setText("constructionPrice", `+${constructionPrice}%`);
-    setText("constructionImpact", getImpactDescription(value));
-
-    setText("energyDemand", `${energyDemand}%`);
-    setText("energyPrice", `+${energyPrice}%`);
-    setText("energyImpact", getImpactDescription(value));
-
-}
-
-
-/* =================================================
-   IMPACTOS NAS CASAS
-================================================= */
-
-function updateHouseImpacts(value) {
-
-    setText(
-        "infiltration",
-        getImpactLevel(value * 0.8)
-    );
-
-    setText(
-        "flooding",
-        getImpactLevel(value * 0.9)
-    );
-
-    setText(
-        "roof",
-        getImpactLevel(value * 0.65)
-    );
-
-    setText(
-        "moisture",
-        getImpactLevel(value * 0.95)
-    );
-
-}
-
-
-/* =================================================
-   IMPACTOS AMBIENTAIS
-================================================= */
-
-function updateEnvironmentalImpacts(value) {
-
-    setText(
-        "waterRecharge",
-        getImpactLevel(value * 0.8)
-    );
-
-    setText(
-        "erosion",
-        getImpactLevel(value * 0.9)
-    );
-
-    setText(
-        "vegetation",
-        getImpactLevel(value * 0.4)
-    );
-
-    setText(
-        "environmentRisk",
-        getImpactLevel(value * 0.75)
-    );
-
-}
-
-
-function getImpactLevel(value) {
-
-    value = Math.max(0, Math.min(100, value));
-
-    if (value <= 20) return "Baixo";
-
-    if (value <= 40) return "Moderado";
-
-    if (value <= 60) return "Médio";
-
-    if (value <= 80) return "Alto";
-
-    return "Muito alto";
-
-}
-
-
-/* =================================================
-   PREVISÃO DAS PRÓXIMAS HORAS
-================================================= */
-
-function updateForecast(data) {
+    const locationBtn = document.getElementById("locationBtn");
+    const connectionStatus = document.getElementById("connectionStatus");
+
+    const city = document.getElementById("city");
+    const coordinates = document.getElementById("coordinates");
+    const temperature = document.getElementById("temperature");
+    const description = document.getElementById("description");
+    const weatherIcon = document.getElementById("weatherIcon");
+    const humidity = document.getElementById("humidity");
+    const wind = document.getElementById("wind");
+    const rain = document.getElementById("rain");
+    const rainProbability = document.getElementById("rainProbability");
+
+    const rainIndex = document.getElementById("rainIndex");
+    const houseIndex = document.getElementById("houseIndex");
+    const environmentIndex = document.getElementById("environmentIndex");
+    const transportIndex = document.getElementById("transportIndex");
+
+    const rainBar = document.getElementById("rainBar");
+    const houseBar = document.getElementById("houseBar");
+    const environmentBar = document.getElementById("environmentBar");
+    const transportBar = document.getElementById("transportBar");
+
+    const rainText = document.getElementById("rainText");
+    const houseText = document.getElementById("houseText");
+    const environmentText = document.getElementById("environmentText");
+    const transportText = document.getElementById("transportText");
+
+    const foodPrice = document.getElementById("foodPrice");
+    const transportPrice = document.getElementById("transportPrice");
+    const energyPrice = document.getElementById("energyPrice");
+    const constructionPrice = document.getElementById("constructionPrice");
+
+    const economicImpact = document.getElementById("economicImpact");
+    const houseImpact = document.getElementById("houseImpact");
+    const environmentalImpact = document.getElementById("environmentalImpact");
+
+    const rainSlider = document.getElementById("rainSlider");
+    const autoMode = document.getElementById("autoMode");
+    const simulationValue = document.getElementById("simulationValue");
+    const simulationStatus = document.getElementById("simulationStatus");
 
     const forecast = document.getElementById("forecast");
+    const canvas = document.getElementById("weatherCanvas");
+    const ctx = canvas ? canvas.getContext("2d") : null;
 
-    if (!forecast || !data.hourly) return;
+    let currentWeather = {
+        temperature: 25,
+        humidity: 70,
+        wind: 10,
+        rain: 0,
+        probability: 0
+    };
 
-    forecast.innerHTML = "";
+    let rainDrops = [];
+    let animationFrame;
 
-    const hourly = data.hourly;
+    function setText(element, value) {
+        if (element) {
+            element.textContent = value;
+        }
+    }
 
-    const currentTime = data.current.time;
+    function setBar(element, value) {
+        if (element) {
+            element.style.width = `${Math.max(0, Math.min(100, value))}%`;
+        }
+    }
 
-    let startIndex = hourly.time.indexOf(currentTime);
+    function getWeatherDescription(code) {
+        const descriptions = {
+            0: "Céu limpo",
+            1: "Principalmente limpo",
+            2: "Parcialmente nublado",
+            3: "Nublado",
+            45: "Neblina",
+            48: "Neblina congelante",
+            51: "Garoa fraca",
+            53: "Garoa moderada",
+            55: "Garoa intensa",
+            61: "Chuva fraca",
+            63: "Chuva moderada",
+            65: "Chuva forte",
+            71: "Neve fraca",
+            73: "Neve moderada",
+            75: "Neve forte",
+            80: "Pancadas fracas",
+            81: "Pancadas moderadas",
+            82: "Pancadas fortes",
+            95: "Trovoada",
+            96: "Trovoada com granizo",
+            99: "Trovoada forte com granizo"
+        };
 
-    if (startIndex === -1) {
+        return descriptions[code] || "Condição desconhecida";
+    }
 
-        startIndex = hourly.time.findIndex(time =>
-            time >= currentTime
+    function getWeatherIcon(code) {
+        if (code === 0) return "☀️";
+        if (code === 1 || code === 2) return "🌤️";
+        if (code === 3) return "☁️";
+        if (code === 45 || code === 48) return "🌫️";
+        if (code >= 51 && code <= 67) return "🌧️";
+        if (code >= 71 && code <= 77) return "❄️";
+        if (code >= 80 && code <= 82) return "🌦️";
+        if (code >= 95) return "⛈️";
+
+        return "🌡️";
+    }
+
+    function calculateIndexes(data) {
+        const precipitation = Number(data.rain || 0);
+        const rainChance = Number(data.probability || 0);
+        const humidityValue = Number(data.humidity || 0);
+        const windValue = Number(data.wind || 0);
+
+        const rainScore = Math.min(
+            100,
+            Math.round(precipitation * 8 + rainChance * 0.5)
         );
 
+        const houseScore = Math.min(
+            100,
+            Math.round(
+                precipitation * 5 +
+                rainChance * 0.35 +
+                windValue * 0.8
+            )
+        );
+
+        const environmentScore = Math.min(
+            100,
+            Math.round(
+                precipitation * 4 +
+                humidityValue * 0.25
+            )
+        );
+
+        const transportScore = Math.min(
+            100,
+            Math.round(
+                precipitation * 5 +
+                rainChance * 0.4 +
+                windValue * 0.7
+            )
+        );
+
+        setText(rainIndex, `${rainScore}%`);
+        setText(houseIndex, `${houseScore}%`);
+        setText(environmentIndex, `${environmentScore}%`);
+        setText(transportIndex, `${transportScore}%`);
+
+        setBar(rainBar, rainScore);
+        setBar(houseBar, houseScore);
+        setBar(environmentBar, environmentScore);
+        setBar(transportBar, transportScore);
+
+        setText(
+            rainText,
+            rainScore < 30
+                ? "Baixa possibilidade de chuva intensa."
+                : rainScore < 70
+                ? "Possibilidade moderada de chuva."
+                : "Alta possibilidade de chuva intensa."
+        );
+
+        setText(
+            houseText,
+            houseScore < 30
+                ? "Baixo risco para residências."
+                : houseScore < 70
+                ? "Atenção a infiltrações e ventos."
+                : "Risco elevado de danos estruturais."
+        );
+
+        setText(
+            environmentText,
+            environmentScore < 30
+                ? "Impacto ambiental baixo."
+                : environmentScore < 70
+                ? "Impacto ambiental moderado."
+                : "Impacto ambiental elevado."
+        );
+
+        setText(
+            transportText,
+            transportScore < 30
+                ? "Trânsito com poucas alterações."
+                : transportScore < 70
+                ? "Possíveis atrasos e pistas molhadas."
+                : "Risco elevado para o transporte."
+        );
+
+        setText(
+            foodPrice,
+            precipitation > 10 ? "Aumento moderado" : "Estável"
+        );
+
+        setText(
+            transportPrice,
+            precipitation > 10 || windValue > 30
+                ? "Aumento provável"
+                : "Estável"
+        );
+
+        setText(
+            energyPrice,
+            data.temperature < 18 || data.temperature > 32
+                ? "Aumento no consumo"
+                : "Consumo normal"
+        );
+
+        setText(
+            constructionPrice,
+            precipitation > 15
+                ? "Obras podem atrasar"
+                : "Condições favoráveis"
+        );
+
+        setText(
+            economicImpact,
+            precipitation > 15
+                ? "A chuva pode aumentar custos e atrasar atividades econômicas."
+                : "As condições atuais apresentam baixo impacto econômico."
+        );
+
+        setText(
+            houseImpact,
+            houseScore > 70
+                ? "Recomenda-se verificar telhados, calhas, janelas e possíveis infiltrações."
+                : "Não há sinais de impacto elevado nas residências."
+        );
+
+        setText(
+            environmentalImpact,
+            environmentScore > 70
+                ? "Pode ocorrer erosão, alagamento e alteração na qualidade da água."
+                : "O impacto ambiental previsto é baixo ou moderado."
+        );
     }
 
-    if (startIndex === -1) startIndex = 0;
+    function updateWeatherInterface(data, latitude, longitude, cityName) {
+        currentWeather = {
+            temperature: data.temperature,
+            humidity: data.humidity,
+            wind: data.wind,
+            rain: data.rain,
+            probability: data.probability
+        };
 
-    for (
-        let i = startIndex;
-        i < Math.min(startIndex + 12, hourly.time.length);
-        i++
-    ) {
+        setText(city, cityName || "Localização atual");
 
-        const time = formatTime(hourly.time[i]);
+        setText(
+            coordinates,
+            `Latitude: ${latitude.toFixed(5)} | ` +
+            `Longitude: ${longitude.toFixed(5)}`
+        );
 
-        const temperature =
-            Math.round(hourly.temperature_2m[i]);
+        setText(temperature, `${data.temperature.toFixed(1)} °C`);
+        setText(description, getWeatherDescription(data.weatherCode));
+        setText(weatherIcon, getWeatherIcon(data.weatherCode));
+        setText(humidity, `${data.humidity}%`);
+        setText(wind, `${data.wind.toFixed(1)} km/h`);
+        setText(rain, `${data.rain.toFixed(1)} mm`);
+        setText(rainProbability, `${data.probability}%`);
 
-        const probability =
-            hourly.precipitation_probability[i] ?? 0;
-
-        const code =
-            hourly.weather_code[i];
-
-        const item = document.createElement("div");
-
-        item.className = "forecast-item";
-
-        item.innerHTML = `
-            <div class="hour">${time}</div>
-
-            <div class="icon">
-                ${getWeatherIcon(code)}
-            </div>
-
-            <div class="temp">
-                ${temperature}°C
-            </div>
-
-            <div class="rain-prob">
-                🌧️ ${probability}% 
-            </div>
-        `;
-
-        forecast.appendChild(item);
-
+        calculateIndexes(data);
+        updateSimulation(data.rain);
     }
 
-}
+    async function getCityName(latitude, longitude) {
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`
+            );
 
+            if (!response.ok) {
+                return "Localização atual";
+            }
 
-/* =================================================
-   MODO AUTOMÁTICO
-================================================= */
+            const result = await response.json();
 
-function toggleAutomaticMode() {
-
-    automaticMode = !automaticMode;
-
-    if (automaticMode) {
-
-        startAutomaticMode();
-
-        if (autoMode) {
-            autoMode.textContent = "⏹️ Parar automático";
+            return (
+                result.address?.city ||
+                result.address?.town ||
+                result.address?.municipality ||
+                result.address?.village ||
+                "Localização atual"
+            );
+        } catch (error) {
+            console.warn("Não foi possível obter o nome da cidade:", error);
+            return "Localização atual";
         }
-
-    } else {
-
-        stopAutomaticMode();
-
-        if (autoMode) {
-            autoMode.textContent = "🤖 Modo automático";
-        }
-
     }
 
-}
+    async function getWeather(latitude, longitude) {
+        try {
+            setText(connectionStatus, "Buscando dados meteorológicos...");
 
+            const url =
+                `https://api.open-meteo.com/v1/forecast?latitude=${latitude}` +
+                `&longitude=${longitude}` +
+                `&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,rain` +
+                `&hourly=precipitation_probability` +
+                `&forecast_days=2` +
+                `&timezone=auto`;
 
-function startAutomaticMode() {
+            const response = await fetch(url);
 
-    stopAutomaticMode();
+            if (!response.ok) {
+                throw new Error("Erro ao consultar a API meteorológica.");
+            }
 
-    let value = Number(
-        document.getElementById("rainSlider")?.value || 0
-    );
+            const result = await response.json();
 
-    automaticInterval = setInterval(() => {
+            const current = result.current;
+            const hourly = result.hourly;
 
-        value += 5;
+            const currentIndex = hourly.time.indexOf(current.time);
 
-        if (value > 100) {
-            value = 0;
+            const probability =
+                currentIndex >= 0
+                    ? hourly.precipitation_probability[currentIndex] || 0
+                    : 0;
+
+            const data = {
+                temperature: current.temperature_2m,
+                humidity: current.relative_humidity_2m,
+                wind: current.wind_speed_10m,
+                rain: current.rain || 0,
+                probability,
+                weatherCode: current.weather_code
+            };
+
+            const cityName = await getCityName(latitude, longitude);
+
+            updateWeatherInterface(
+                data,
+                latitude,
+                longitude,
+                cityName
+            );
+
+            createForecast(result);
+            setText(connectionStatus, "Dados atualizados com sucesso.");
+        } catch (error) {
+            console.error(error);
+            setText(
+                connectionStatus,
+                "Não foi possível carregar os dados meteorológicos."
+            );
         }
-
-        const slider = document.getElementById("rainSlider");
-
-        if (slider) {
-            slider.value = value;
-        }
-
-        updateSimulation(value);
-
-    }, 1000);
-
-}
-
-
-function stopAutomaticMode() {
-
-    if (automaticInterval) {
-
-        clearInterval(automaticInterval);
-
-        automaticInterval = null;
-
     }
 
-}
+    function getLocation() {
+        if (!navigator.geolocation) {
+            setText(
+                connectionStatus,
+                "Seu navegador não suporta geolocalização."
+            );
+            return;
+        }
 
+        setText(connectionStatus, "Obtendo sua localização...");
 
-/* =================================================
-   ANIMAÇÃO DE CHUVA
-================================================= */
+        navigator.geolocation.getCurrentPosition(
+            position => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
 
-function updateRainAnimation(intensity) {
+                getWeather(latitude, longitude);
+            },
+            error => {
+                console.error(error);
 
-    const canvas = document.getElementById("weatherCanvas");
+                setText(
+                    connectionStatus,
+                    "Permissão de localização negada ou indisponível."
+                );
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    }
 
-    if (!canvas) return;
+    function createForecast(data) {
+        if (!forecast || !data.hourly) {
+            return;
+        }
 
-    const ctx = canvas.getContext("2d");
+        forecast.innerHTML = "";
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+        const times = data.hourly.time || [];
+        const temperatures = data.hourly.temperature_2m || [];
+        const probabilities =
+            data.hourly.precipitation_probability || [];
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const limit = Math.min(times.length, 12);
 
-    if (intensity <= 0) return;
+        for (let i = 0; i < limit; i++) {
+            const item = document.createElement("div");
+            item.className = "forecast-item";
 
-    const drops = Math.round(intensity * 1.5);
+            const date = new Date(times[i]);
 
-    ctx.strokeStyle = "rgba(100,180,255,0.45)";
+            item.innerHTML = `
+                <strong>${date.toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                })}</strong>
+                <span>${temperatures[i]} °C</span>
+                <small>${probabilities[i] || 0}% de chuva</small>
+            `;
 
-    ctx.lineWidth = 1;
+            forecast.appendChild(item);
+        }
+    }
 
-    for (let i = 0; i < drops; i++) {
+    function updateSimulation(value) {
+        const rainValue = Number(value) || 0;
 
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
+        setText(simulationValue, `${rainValue.toFixed(1)} mm`);
+
+        setText(
+            simulationStatus,
+            rainValue < 5
+                ? "Chuva fraca ou inexistente."
+                : rainValue < 15
+                ? "Chuva moderada."
+                : "Chuva intensa com possibilidade de impactos."
+        );
+
+        if (autoMode && autoMode.checked) {
+            currentWeather.rain = rainValue;
+            calculateIndexes(currentWeather);
+        }
+    }
+
+    function createRainDrops() {
+        rainDrops = [];
+
+        for (let i = 0; i < 120; i++) {
+            rainDrops.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                length: Math.random() * 15 + 5,
+                speed: Math.random() * 5 + 3
+            });
+        }
+    }
+
+    function animateRain() {
+        if (!ctx || !canvas) {
+            return;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const rainAmount = Number(currentWeather.rain) || 0;
+
+        if (rainAmount <= 0) {
+            animationFrame = requestAnimationFrame(animateRain);
+            return;
+        }
 
         ctx.beginPath();
 
-        ctx.moveTo(x, y);
+        rainDrops.forEach(drop => {
+            ctx.moveTo(drop.x, drop.y);
+            ctx.lineTo(drop.x - 2, drop.y + drop.length);
 
-        ctx.lineTo(x - 2, y + 12);
+            drop.y += drop.speed;
 
+            if (drop.y > canvas.height) {
+                drop.y = -drop.length;
+                drop.x = Math.random() * canvas.width;
+            }
+        });
+
+        ctx.strokeStyle = "rgba(120, 180, 255, 0.7)";
+        ctx.lineWidth = 1;
         ctx.stroke();
 
+        animationFrame = requestAnimationFrame(animateRain);
     }
 
-}
-
-
-/* =================================================
-   FUNÇÕES AUXILIARES
-================================================= */
-
-function setText(id, value) {
-
-    const element = document.getElementById(id);
-
-    if (element) {
-        element.textContent = value;
+    if (locationBtn) {
+        locationBtn.addEventListener("click", getLocation);
     }
-
-}
-
-
-function setBar(id, value) {
-
-    const element = document.getElementById(id);
-
-    if (element) {
-
-        element.style.width =
-            `${Math.max(0, Math.min(100, value))}%`;
-
-    }
-
-}
-
-
-function formatTime(time) {
-
-    if (!time) return "--:--";
-
-    return time.substring(11, 16);
-
-}
-
-
-/* =================================================
-   REDIMENSIONAR CANVAS
-================================================= */
-
-window.addEventListener("resize", () => {
 
     if (rainSlider) {
-        updateRainAnimation(Number(rainSlider.value));
+        rainSlider.addEventListener("input", event => {
+            updateSimulation(event.target.value);
+        });
     }
 
-});
-```
+    if (autoMode) {
+        autoMode.addEventListener("change", () => {
+            if (autoMode.checked) {
+                updateSimulation(currentWeather.rain);
+            }
+        });
+    }
 
+    if (canvas) {
+        canvas.width = canvas.clientWidth || 600;
+        canvas.height = canvas.clientHeight || 300;
+
+        createRainDrops();
+        animateRain();
+    }
+
+    getLocation();
 });
