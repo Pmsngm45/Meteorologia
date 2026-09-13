@@ -520,3 +520,317 @@ document.addEventListener("DOMContentLoaded", () => {
 
     getLocation();
 });
+/* =====================================================
+   SIMULAÇÃO METEOROLÓGICA 3D
+===================================================== */
+
+function iniciarSimulacao3D() {
+    const container = document.getElementById("weather3D");
+
+    if (!container) {
+        console.warn("Elemento weather3D não encontrado.");
+        return;
+    }
+
+    if (typeof THREE === "undefined") {
+        console.error("Three.js não foi carregado.");
+        return;
+    }
+
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(
+        45,
+        container.clientWidth / container.clientHeight,
+        0.1,
+        1000
+    );
+
+    camera.position.set(0, 1.5, 8);
+
+    const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true
+    });
+
+    renderer.setSize(
+        container.clientWidth,
+        container.clientHeight
+    );
+
+    renderer.setPixelRatio(
+        Math.min(window.devicePixelRatio, 2)
+    );
+
+    container.appendChild(renderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(
+        0xffffff,
+        1.2
+    );
+
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(
+        0xffffff,
+        2
+    );
+
+    sunLight.position.set(5, 4, 5);
+    scene.add(sunLight);
+
+    const earthGroup = new THREE.Group();
+    scene.add(earthGroup);
+
+    const earthGeometry = new THREE.SphereGeometry(
+        2,
+        64,
+        64
+    );
+
+    const earthMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2374c6,
+        roughness: 0.8,
+        metalness: 0.05
+    });
+
+    const earth = new THREE.Mesh(
+        earthGeometry,
+        earthMaterial
+    );
+
+    earthGroup.add(earth);
+
+    const atmosphereGeometry = new THREE.SphereGeometry(
+        2.08,
+        64,
+        64
+    );
+
+    const atmosphereMaterial = new THREE.MeshBasicMaterial({
+        color: 0x55aaff,
+        transparent: true,
+        opacity: 0.16,
+        side: THREE.BackSide
+    });
+
+    const atmosphere = new THREE.Mesh(
+        atmosphereGeometry,
+        atmosphereMaterial
+    );
+
+    earthGroup.add(atmosphere);
+
+    const cloudGroup = new THREE.Group();
+    earthGroup.add(cloudGroup);
+
+    function criarNuvem(x, y, z, tamanho) {
+        const cloudMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const cloud = new THREE.Group();
+
+        for (let i = 0; i < 5; i++) {
+            const cloudGeometry = new THREE.SphereGeometry(
+                tamanho * (0.45 + Math.random() * 0.3),
+                20,
+                20
+            );
+
+            const cloudPart = new THREE.Mesh(
+                cloudGeometry,
+                cloudMaterial
+            );
+
+            cloudPart.position.set(
+                (i - 2) * tamanho * 0.45,
+                Math.random() * tamanho * 0.2,
+                Math.random() * tamanho * 0.2
+            );
+
+            cloud.add(cloudPart);
+        }
+
+        cloud.position.set(x, y, z);
+        cloudGroup.add(cloud);
+    }
+
+    for (let i = 0; i < 18; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const height = Math.random() * 1.5 - 0.7;
+
+        criarNuvem(
+            Math.cos(angle) * 2.1,
+            height,
+            Math.sin(angle) * 2.1,
+            0.25 + Math.random() * 0.2
+        );
+    }
+
+    const rainGroup = new THREE.Group();
+    scene.add(rainGroup);
+
+    const rainDrops = [];
+
+    function criarChuva() {
+        limparChuva();
+
+        for (let i = 0; i < 500; i++) {
+            const geometry = new THREE.BufferGeometry();
+
+            const positions = new Float32Array(6);
+
+            const x = (Math.random() - 0.5) * 8;
+            const y = Math.random() * 7 - 1;
+            const z = (Math.random() - 0.5) * 8;
+
+            positions[0] = x;
+            positions[1] = y;
+            positions[2] = z;
+
+            positions[3] = x;
+            positions[4] = y - 0.25;
+            positions[5] = z;
+
+            geometry.setAttribute(
+                "position",
+                new THREE.BufferAttribute(positions, 3)
+            );
+
+            const material = new THREE.LineBasicMaterial({
+                color: 0x66baff,
+                transparent: true,
+                opacity: 0.7
+            });
+
+            const drop = new THREE.Line(
+                geometry,
+                material
+            );
+
+            rainGroup.add(drop);
+            rainDrops.push(drop);
+        }
+    }
+
+    function limparChuva() {
+        while (rainGroup.children.length > 0) {
+            const drop = rainGroup.children[0];
+
+            drop.geometry.dispose();
+            drop.material.dispose();
+
+            rainGroup.remove(drop);
+        }
+
+        rainDrops.length = 0;
+    }
+
+    function atualizarChuva() {
+        rainDrops.forEach(drop => {
+            const positions = drop.geometry.attributes.position.array;
+
+            positions[1] -= 0.12;
+            positions[4] -= 0.12;
+
+            if (positions[1] < -3) {
+                const novoY = 5 + Math.random() * 3;
+
+                positions[1] = novoY;
+                positions[4] = novoY - 0.25;
+            }
+
+            drop.geometry.attributes.position.needsUpdate = true;
+        });
+    }
+
+    function ativarTempestade() {
+        criarChuva();
+
+        scene.background = new THREE.Color(0x070b18);
+        sunLight.intensity = 0.5;
+        ambientLight.intensity = 0.5;
+        atmosphereMaterial.opacity = 0.28;
+    }
+
+    function limparTempestade() {
+        limparChuva();
+
+        scene.background = null;
+        sunLight.intensity = 2;
+        ambientLight.intensity = 1.2;
+        atmosphereMaterial.opacity = 0.16;
+    }
+
+    const rainButton = document.getElementById("rain3DButton");
+    const clearButton = document.getElementById("clear3DButton");
+    const stormButton = document.getElementById("storm3DButton");
+
+    if (rainButton) {
+        rainButton.addEventListener("click", () => {
+            criarChuva();
+        });
+    }
+
+    if (clearButton) {
+        clearButton.addEventListener("click", () => {
+            limparTempestade();
+        });
+    }
+
+    if (stormButton) {
+        stormButton.addEventListener("click", () => {
+            ativarTempestade();
+        });
+    }
+
+    let mouseX = 0;
+    let mouseY = 0;
+
+    container.addEventListener("mousemove", event => {
+        const rect = container.getBoundingClientRect();
+
+        mouseX =
+            ((event.clientX - rect.left) / rect.width - 0.5) * 2;
+
+        mouseY =
+            ((event.clientY - rect.top) / rect.height - 0.5) * 2;
+    });
+
+    function animar() {
+        requestAnimationFrame(animar);
+
+        earthGroup.rotation.y += 0.0015;
+
+        earthGroup.rotation.x +=
+            (mouseY * 0.15 - earthGroup.rotation.x) * 0.03;
+
+        earthGroup.rotation.z +=
+            (mouseX * 0.15 - earthGroup.rotation.z) * 0.03;
+
+        cloudGroup.rotation.y += 0.0025;
+
+        atualizarChuva();
+
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener("resize", () => {
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(width, height);
+    });
+
+    animar();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    iniciarSimulacao3D();
+});
